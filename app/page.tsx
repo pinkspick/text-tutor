@@ -9,6 +9,7 @@ type NewsItem = {
   title: string
   summary: string
   link?: string
+  image?: string
   publishedAt?: string
 }
 
@@ -95,17 +96,33 @@ export default function HomePage() {
               onClick={() => pick(it)}
               style={{
                 textAlign: 'left', backgroundColor: '#fff', border: '1px solid #f0d8d8',
-                borderRadius: '14px', padding: '16px 18px', cursor: 'pointer', display: 'block'
+                borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', display: 'block',
+                padding: 0, width: '100%'
               }}
             >
-              <span style={{
-                display: 'inline-block', fontFamily: 'Work Sans, sans-serif', fontSize: '10px', fontWeight: 600,
-                padding: '3px 8px', borderRadius: '999px', marginBottom: '8px',
-                backgroundColor: SOURCE_BG[it.source] || '#eee',
-                color: SOURCE_FG[it.source] || '#444',
-              }}>{it.source}</span>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', fontWeight: 700, color: '#25181e', margin: '0 0 6px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '13px', color: '#4d4447', margin: 0, lineHeight: 1.5, overflowWrap: 'anywhere'}}>{it.summary}</p>
+              {it.image && (
+                <div style={{width: '100%', aspectRatio: '16 / 9', backgroundColor: '#fff0f4', overflow: 'hidden'}}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={it.image}
+                    alt=""
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { (e.currentTarget.parentElement as HTMLDivElement).style.display = 'none' }}
+                    style={{width: '100%', height: '100%', objectFit: 'cover', display: 'block'}}
+                  />
+                </div>
+              )}
+              <div style={{padding: '14px 16px'}}>
+                <span style={{
+                  display: 'inline-block', fontFamily: 'Work Sans, sans-serif', fontSize: '10px', fontWeight: 600,
+                  padding: '3px 8px', borderRadius: '999px', marginBottom: '8px',
+                  backgroundColor: SOURCE_BG[it.source] || '#eee',
+                  color: SOURCE_FG[it.source] || '#444',
+                }}>{it.source}</span>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', fontWeight: 700, color: '#25181e', margin: '0 0 6px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '13px', color: '#4d4447', margin: 0, lineHeight: 1.5, overflowWrap: 'anywhere'}}>{it.summary}</p>
+              </div>
             </button>
           ))}
         </div>

@@ -9,6 +9,7 @@ export type NewsItem = {
   title: string
   summary: string
   link?: string
+  image?: string
   publishedAt?: string
 }
 
@@ -37,14 +38,19 @@ function hash(s: string): string {
   return Math.abs(h).toString(36)
 }
 
-function parseRSS(xml: string): { title: string; description: string; link?: string; pubDate?: string }[] {
-  const items: { title: string; description: string; link?: string; pubDate?: string }[] = []
+function parseRSS(xml: string): { title: string; description: string; link?: string; pubDate?: string; image?: string }[] {
+  const items: { title: string; description: string; link?: string; pubDate?: string; image?: string }[] = []
   for (const m of xml.matchAll(/<item\b[\s\S]*?<\/item>/g)) {
     const block = m[0]
     const t = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)
     const d = block.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)
     const l = block.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/)
     const p = block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/)
+    const enc = block.match(/<enclosure[^>]*url="([^"]+)"[^>]*type="image\/[^"]*"/i)
+    const mediaT = block.match(/<media:thumbnail[^>]*url="([^"]+)"/i)
+    const mediaC = block.match(/<media:content[^>]*url="([^"]+)"[^>]*type="image\/[^"]*"/i)
+    const imgInDesc = d?.[1].match(/<img[^>]*src="([^"]+)"/i)
+    const image = enc?.[1] || mediaT?.[1] || mediaC?.[1] || imgInDesc?.[1]
     const title = t ? clean(t[1]) : ''
     const description = d ? clean(d[1]) : ''
     if (title && description) {
@@ -53,6 +59,7 @@ function parseRSS(xml: string): { title: string; description: string; link?: str
         description,
         link: l ? clean(l[1]) : undefined,
         pubDate: p ? clean(p[1]) : undefined,
+        image,
       })
     }
   }
@@ -77,6 +84,7 @@ async function fetchVOA(): Promise<NewsItem[]> {
       title: it.title,
       summary: it.description,
       link: it.link,
+      image: it.image,
       publishedAt: it.pubDate,
     }))
 }
@@ -94,16 +102,20 @@ async function fetchBaidu(): Promise<NewsItem[]> {
   const html = await res.text()
   const items: NewsItem[] = []
   const seen = new Set<string>()
-  for (const m of html.matchAll(/"query":"((?:[^"\\]|\\.)*)"[\s\S]{0,400}?"desc":"((?:[^"\\]|\\.)*)"|"desc":"((?:[^"\\]|\\.)*)"[\s\S]{0,400}?"query":"((?:[^"\\]|\\.)*)"/g)) {
-    const title = unescapeJson(m[1] || m[4] || '')
-    const desc = unescapeJson(m[2] || m[3] || '')
+  for (const m of html.matchAll(/"desc":"((?:[^"\\]|\\.)*)"[\s\S]{0,800}?"query":"((?:[^"\\]|\\.)*)"/g)) {
+    const desc = unescapeJson(m[1] || '')
+    const title = unescapeJson(m[2] || '')
     if (!title || !desc || seen.has(title)) continue
+    const window = m[0]
+    const imgMatch = window.match(/"img":"((?:[^"\\]|\\.)*)"/)
+    const image = imgMatch ? unescapeJson(imgMatch[1]) : undefined
     seen.add(title)
     items.push({
       id: hash('baidu:' + title),
       source: '百度热搜',
       title,
       summary: desc,
+      image,
       link: 'https://www.baidu.com/s?wd=' + encodeURIComponent(title),
     })
     if (items.length >= 12) break
