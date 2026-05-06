@@ -2,7 +2,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getHskWord, type HskWord } from '../../lib/hsk'
+import { colorPinyinLine } from '../../lib/toneColors'
+import { recordTextView } from '../../lib/learnLog'
 import DictionaryDrawer from '../components/DictionaryDrawer'
+import ScrollUpButton from '../components/ScrollUpButton'
 
 type CurrentText = {
   text: string
@@ -41,6 +44,11 @@ export default function AnalyzePage() {
     }
     return out.sort((a, b) => a.level - b.level)
   }, [data])
+
+  useEffect(() => {
+    if (!data) return
+    recordTextView({ title: data.title, source: data.source }, advancedWords)
+  }, [data, advancedWords])
 
   if (!data) return (
     <main style={{paddingTop: '120px', textAlign: 'center', padding: '120px 24px 24px'}}>
@@ -87,7 +95,11 @@ export default function AnalyzePage() {
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '4px'}}>
                   <div style={{flex: 1, minWidth: 0}}>
                     <p style={{fontFamily: 'Newsreader, serif', fontSize: '22px', fontWeight: 700, color: '#25181e', margin: '0 0 2px'}}>{w.word}</p>
-                    <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '13px', color: '#bc004b', margin: 0}}>{w.pinyin}</p>
+                    <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '13px', margin: 0, fontWeight: 600}}>
+                      {colorPinyinLine(w.pinyin).map((syl, i) => (
+                        <span key={i} style={{color: syl.color, marginRight: 4}}>{syl.text}</span>
+                      ))}
+                    </p>
                   </div>
                   <span style={{flexShrink: 0, fontFamily: 'Work Sans, sans-serif', fontSize: '10px', fontWeight: 600, padding: '3px 8px', borderRadius: '999px', backgroundColor: LEVEL_BG[w.level] || '#eee', color: LEVEL_FG[w.level] || '#444'}}>HSK {w.level === 7 ? '7-9' : w.level}</span>
                 </div>
@@ -99,6 +111,7 @@ export default function AnalyzePage() {
       </section>
 
       <DictionaryDrawer word={dictWord} pinyin={dictPinyin} onClose={() => setDictWord(null)} />
+      <ScrollUpButton />
     </main>
   )
 }

@@ -16,10 +16,21 @@ export type QuizRecord = {
   wrongs: WrongAnswer[]
 }
 
+export type DictationRecord = {
+  time: string
+  source: string
+  title: string
+  totalPhrases: number
+  submittedCount: number
+  avgScore: number
+  perPhrase: { expected: string; actual: string; score: number }[]
+}
+
 export type DayEntry = {
   newWords: HskWord[]
-  seenSongs: { title: string; artist: string }[]
+  seenTexts: { title: string; source: string }[]
   quizzes: QuizRecord[]
+  dictations: DictationRecord[]
 }
 
 export type LearnLog = {
@@ -29,13 +40,8 @@ export type LearnLog = {
 
 const KEY = 'learn_log'
 
-function emptyLog(): LearnLog {
-  return { allTimeWords: [], days: {} }
-}
-
-function emptyDay(): DayEntry {
-  return { newWords: [], seenSongs: [], quizzes: [] }
-}
+function emptyLog(): LearnLog { return { allTimeWords: [], days: {} } }
+function emptyDay(): DayEntry { return { newWords: [], seenTexts: [], quizzes: [], dictations: [] } }
 
 function loadLog(): LearnLog {
   if (typeof window === 'undefined') return emptyLog()
@@ -43,13 +49,23 @@ function loadLog(): LearnLog {
     const raw = localStorage.getItem(KEY)
     if (!raw) return emptyLog()
     const parsed = JSON.parse(raw) as Partial<LearnLog>
+    const days: Record<string, DayEntry> = {}
+    if (parsed.days && typeof parsed.days === 'object') {
+      for (const [k, v] of Object.entries(parsed.days)) {
+        const d = v as Partial<DayEntry>
+        days[k] = {
+          newWords: Array.isArray(d.newWords) ? d.newWords : [],
+          seenTexts: Array.isArray(d.seenTexts) ? d.seenTexts : [],
+          quizzes: Array.isArray(d.quizzes) ? d.quizzes : [],
+          dictations: Array.isArray(d.dictations) ? d.dictations : [],
+        }
+      }
+    }
     return {
       allTimeWords: Array.isArray(parsed.allTimeWords) ? parsed.allTimeWords : [],
-      days: parsed.days && typeof parsed.days === 'object' ? parsed.days : {},
+      days,
     }
-  } catch {
-    return emptyLog()
-  }
+  } catch { return emptyLog() }
 }
 
 function saveLog(log: LearnLog) {
@@ -59,10 +75,7 @@ function saveLog(log: LearnLog) {
 
 export function todayKey(): string {
   const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function nowTime(): string {
@@ -70,13 +83,13 @@ function nowTime(): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-export function recordSongView(song: { title: string; artist: string }, hskWords: HskWord[]): { newCount: number } {
+export function recordTextView(text: { title: string; source: string }, hskWords: HskWord[]): { newCount: number } {
   const log = loadLog()
   const today = todayKey()
   if (!log.days[today]) log.days[today] = emptyDay()
   const day = log.days[today]
-  if (!day.seenSongs.find(s => s.title === song.title && s.artist === song.artist)) {
-    day.seenSongs.push({ title: song.title, artist: song.artist })
+  if (!day.seenTexts.find(s => s.title === text.title && s.source === text.source)) {
+    day.seenTexts.push({ title: text.title, source: text.source })
   }
   const seenSet = new Set(log.allTimeWords)
   const todayWordSet = new Set(day.newWords.map(w => w.word))
@@ -103,11 +116,17 @@ export function recordQuiz(record: Omit<QuizRecord, 'time'>) {
   saveLog(log)
 }
 
+export function recordDictation(record: Omit<DictationRecord, 'time'>) {
+  const log = loadLog()
+  const today = todayKey()
+  if (!log.days[today]) log.days[today] = emptyDay()
+  log.days[today].dictations.push({ ...record, time: nowTime() })
+  saveLog(log)
+}
+
 export function getAllDays(): { date: string; entry: DayEntry }[] {
   const log = loadLog()
-  return Object.keys(log.days)
-    .sort((a, b) => b.localeCompare(a))
-    .map(date => ({ date, entry: log.days[date] }))
+  return Object.keys(log.days).sort((a, b) => b.localeCompare(a)).map(date => ({ date, entry: log.days[date] }))
 }
 
 export function clearLog() {
@@ -118,9 +137,14 @@ export function clearLog() {
 export function buildMarkdown(): string {
   const days = getAllDays()
   if (days.length === 0) return '# 学习记录\n\n（无数据）\n'
-  let md = `# 学习记录\n\n_导出时间: ${new Date().toLocaleString('zh-CN')}_\n\n`
+  let md = `# 学习记录 · 文练\n\n_导出时间: ${new Date().toLocaleString('zh-CN')}_\n\n`
   for (const { date, entry } of days) {
     md += `\n## ${date}\n\n`
+    if (entry.seenTexts.length) {
+      md += `### 阅读 · ${entry.seenTexts.length} 篇\n\n`
+      for (const s of entry.seenTexts) md += `- **${s.title}** _(${s.source})_\n`
+      md += '\n'
+    }
     if (entry.newWords.length) {
       md += `### 新生词 · ${entry.newWords.length} 个\n\n`
       for (const w of entry.newWords) {
@@ -129,10 +153,19 @@ export function buildMarkdown(): string {
       }
       md += '\n'
     }
-    if (entry.seenSongs.length) {
-      md += `### 听过的歌曲\n\n`
-      for (const s of entry.seenSongs) md += `- ${s.title} — ${s.artist}\n`
-      md += '\n'
+    if (entry.dictations.length) {
+      md += `### 听写 · ${entry.dictations.length} 次\n\n`
+      for (const d of entry.dictations) {
+        md += `**${d.time} · ${d.title}** _(${d.source})_ — ${d.avgScore.toFixed(2)} / 100 (${d.submittedCount}/${d.totalPhrases} 句)\n\n`
+        const wrongs = d.perPhrase.filter(p => p.score < 100)
+        if (wrongs.length) {
+          md += `错处:\n\n`
+          for (const p of wrongs) {
+            md += `- 期望: ${p.expected}\n  输入: ${p.actual} _(${p.score.toFixed(0)}/100)_\n`
+          }
+          md += '\n'
+        }
+      }
     }
     if (entry.quizzes.length) {
       md += `### 测验 · ${entry.quizzes.length} 次\n\n`

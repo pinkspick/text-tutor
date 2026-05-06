@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
-export const revalidate = 300
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export type NewsItem = {
   id: string
@@ -62,6 +63,7 @@ async function fetchVOA(): Promise<NewsItem[]> {
   const res = await fetch('https://www.voachinese.com/api/?type=rss&zoneId=0', {
     headers: { 'User-Agent': 'Mozilla/5.0' },
     signal: AbortSignal.timeout(8000),
+    cache: 'no-store',
   })
   if (!res.ok) return []
   const xml = await res.text()
@@ -86,6 +88,7 @@ async function fetchBaidu(): Promise<NewsItem[]> {
       'Accept-Language': 'zh-CN,zh;q=0.9',
     },
     signal: AbortSignal.timeout(8000),
+    cache: 'no-store',
   })
   if (!res.ok) return []
   const html = await res.text()

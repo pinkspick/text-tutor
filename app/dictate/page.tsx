@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { recordDictation } from '../../lib/learnLog'
 
 type CurrentText = {
   text: string
@@ -66,16 +67,18 @@ function speak(text: string) {
   } catch {}
 }
 
-type Step = 'reading' | 'typing' | 'graded'
+type CardState = {
+  input: string
+  submitted: boolean
+  hidden: boolean
+}
 
 export default function DictatePage() {
   const router = useRouter()
   const [data, setData] = useState<CurrentText | null>(null)
   const [phrases, setPhrases] = useState<string[]>([])
-  const [idx, setIdx] = useState(0)
-  const [step, setStep] = useState<Step>('reading')
-  const [input, setInput] = useState('')
-  const [history, setHistory] = useState<{expected: string; actual: string; score: number}[]>([])
+  const [cards, setCards] = useState<CardState[]>([])
+  const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem('current_text')
@@ -83,57 +86,64 @@ export default function DictatePage() {
       try {
         const parsed = JSON.parse(stored) as CurrentText
         setData(parsed)
-        setPhrases(splitPhrases(parsed.text))
+        const ps = splitPhrases(parsed.text)
+        setPhrases(ps)
+        setCards(ps.map(() => ({ input: '', submitted: false, hidden: false })))
       } catch {}
     }
   }, [])
 
-  const phrase = phrases[idx] || ''
-  const matched = useMemo(() => step === 'graded' ? lcsMatched(phrase, input) : null, [step, phrase, input])
-  const score = useMemo(() => {
-    if (!matched || phrase.length === 0) return 0
-    const correct = matched.filter(Boolean).length
-    return (correct / phrase.length) * 100
-  }, [matched, phrase])
-  const avgScore = history.length > 0 ? history.reduce((s, h) => s + h.score, 0) / history.length : null
+  useEffect(() => {
+    function onScroll() { setScrolled(window.scrollY > 400) }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
-  function ready() { setStep('typing') }
-  function submit() {
-    setStep('graded')
-    setHistory(h => [...h, { expected: phrase, actual: input, score: phrase.length > 0 ? (lcsMatched(phrase, input).filter(Boolean).length / phrase.length) * 100 : 0 }])
-  }
-  function next() {
-    if (idx + 1 < phrases.length) {
-      setIdx(idx + 1)
-      setInput('')
-      setStep('reading')
-    } else {
-      setStep('graded')
-    }
-  }
-  function restart() {
-    setIdx(0)
-    setInput('')
-    setStep('reading')
-    setHistory([])
+  const scores = useMemo(() => phrases.map((p, i) => {
+    if (!cards[i]?.submitted) return null
+    const matched = lcsMatched(p, cards[i].input)
+    return p.length > 0 ? (matched.filter(Boolean).length / p.length) * 100 : 0
+  }), [phrases, cards])
+
+  const submittedScores = scores.filter((s): s is number => s !== null)
+  const avgScore = submittedScores.length > 0 ? submittedScores.reduce((a, b) => a + b, 0) / submittedScores.length : null
+
+  const loggedRef = useRef<{ count: number; total: number; avg: number } | null>(null)
+  useEffect(() => {
+    if (!data || phrases.length === 0) return
+    const submittedCount = submittedScores.length
+    if (submittedCount < phrases.length) return
+    const avg = submittedScores.reduce((a, b) => a + b, 0) / submittedCount
+    const sig = { count: submittedCount, total: phrases.length, avg }
+    if (loggedRef.current && loggedRef.current.count === sig.count && loggedRef.current.total === sig.total && Math.abs(loggedRef.current.avg - sig.avg) < 0.01) return
+    loggedRef.current = sig
+    recordDictation({
+      source: data.source,
+      title: data.title,
+      totalPhrases: phrases.length,
+      submittedCount,
+      avgScore: avg,
+      perPhrase: phrases.map((p, i) => ({ expected: p, actual: cards[i]?.input || '', score: scores[i] ?? 0 })),
+    })
+  }, [data, phrases, cards, scores, submittedScores])
+
+  function update(i: number, partial: Partial<CardState>) {
+    setCards(c => c.map((card, idx) => idx === i ? { ...card, ...partial } : card))
   }
 
   if (!data) return (
-    <main style={{paddingTop: '120px', textAlign: 'center', padding: '120px 24px 24px'}}>
+    <main style={{padding: '120px 24px 24px', textAlign: 'center'}}>
       <p style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '20px', color: '#4d4447'}}>还没选文章</p>
       <button onClick={() => router.push('/')} style={{marginTop: '16px', backgroundColor: '#bc004b', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px 24px', fontFamily: 'Work Sans, sans-serif', cursor: 'pointer'}}>去阅读</button>
     </main>
   )
 
   if (phrases.length === 0) return (
-    <main style={{paddingTop: '120px', textAlign: 'center', padding: '120px 24px 24px'}}>
+    <main style={{padding: '120px 24px 24px', textAlign: 'center'}}>
       <p style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '20px', color: '#4d4447'}}>这篇文章太短，无法听写</p>
       <button onClick={() => router.push('/')} style={{marginTop: '16px', backgroundColor: '#bc004b', color: '#fff', border: 'none', borderRadius: '8px', padding: '12px 24px', fontFamily: 'Work Sans, sans-serif', cursor: 'pointer'}}>换一篇</button>
     </main>
   )
-
-  const isLast = idx + 1 >= phrases.length
-  const allDone = step === 'graded' && isLast
 
   return (
     <main style={{paddingBottom: '140px', maxWidth: '700px', margin: '0 auto'}}>
@@ -141,136 +151,130 @@ export default function DictatePage() {
         <button onClick={() => router.push('/analyze')} style={{background: 'none', border: 'none', cursor: 'pointer'}}>
           <span className="material-symbols-outlined" style={{color: '#bc004b'}}>arrow_back</span>
         </button>
-        <h1 style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '18px', color: '#bc004b', margin: 0}}>听写 · {idx + 1}/{phrases.length}</h1>
-        <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: '12px', color: '#4d4447', minWidth: 40, textAlign: 'right'}}>
+        <h1 style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '18px', color: '#bc004b', margin: 0}}>听写 · {phrases.length} 句</h1>
+        <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: '13px', color: '#bc004b', fontWeight: 600, minWidth: 60, textAlign: 'right'}}>
           {avgScore !== null ? avgScore.toFixed(1) : '—'}
+          <span style={{color: '#7f7478', fontWeight: 400, fontSize: 11}}> /100</span>
         </span>
       </header>
 
-      <section style={{padding: '96px 24px 24px'}}>
-        {step === 'reading' && (
-          <>
-            <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', marginBottom: '16px'}}>读熟这句话，准备好后开始</p>
-            <p style={{fontFamily: 'Newsreader, serif', fontSize: '28px', fontWeight: 600, color: '#25181e', lineHeight: 1.5, marginBottom: '32px', overflowWrap: 'anywhere'}}>{phrase}</p>
-            <div style={{display: 'flex', gap: '10px', marginBottom: '12px'}}>
-              <button onClick={() => speak(phrase)} aria-label="朗读" style={{
-                backgroundColor: '#fff0f4', color: '#bc004b', border: 'none', borderRadius: '10px',
-                padding: '12px 16px', cursor: 'pointer',
-                fontFamily: 'Work Sans, sans-serif', fontSize: '13px', fontWeight: 600,
-                display: 'flex', alignItems: 'center', gap: '6px'
+      <section style={{padding: '96px 16px 16px'}}>
+        <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#7f7478', textAlign: 'center', marginBottom: '20px'}}>
+          看着原句输入，或点 👁 隐藏来挑战记忆 · 点 🔊 听发音
+        </p>
+
+        <div style={{display: 'flex', flexDirection: 'column', gap: '14px'}}>
+          {phrases.map((phrase, i) => {
+            const card = cards[i] || { input: '', submitted: false, hidden: false }
+            const matched = card.submitted ? lcsMatched(phrase, card.input) : null
+            const score = scores[i]
+            const scoreColor = score === null ? '#7f7478' : score >= 80 ? '#2e7d32' : score >= 50 ? '#fb8c00' : '#bc004b'
+            return (
+              <div key={i} style={{
+                backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '14px', padding: '14px 16px'
               }}>
-                <span className="material-symbols-outlined" style={{fontSize: 18}}>volume_up</span>
-                朗读
-              </button>
-              <button onClick={ready} style={{
-                flex: 1, backgroundColor: '#bc004b', color: '#fff', border: 'none', borderRadius: '10px',
-                padding: '12px 20px', cursor: 'pointer',
-                fontFamily: 'Work Sans, sans-serif', fontSize: '13px', fontWeight: 600
-              }}>我准备好了 →</button>
-            </div>
-          </>
-        )}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '8px'}}>
+                  <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', fontWeight: 600}}>第 {i + 1} 句</span>
+                  <div style={{display: 'flex', gap: '6px'}}>
+                    <button onClick={() => update(i, { hidden: !card.hidden })} aria-label={card.hidden ? '显示原句' : '隐藏原句'} style={{
+                      background: card.hidden ? '#fff0f4' : 'transparent', border: 'none', borderRadius: '50%',
+                      width: 30, height: 30, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{color: '#bc004b', fontSize: 18}}>{card.hidden ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                    <button onClick={() => speak(phrase)} aria-label="朗读" style={{
+                      background: '#fff0f4', border: 'none', borderRadius: '50%',
+                      width: 30, height: 30, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{color: '#bc004b', fontSize: 18}}>volume_up</span>
+                    </button>
+                  </div>
+                </div>
 
-        {step === 'typing' && (
-          <>
-            <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', marginBottom: '16px'}}>从记忆中输入这句话（标点也写）</p>
-            <textarea
-              autoFocus
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="..."
-              style={{
-                width: '100%', minHeight: '140px', resize: 'vertical',
-                padding: '16px', borderRadius: '12px', border: '2px solid #f0d8d8',
-                fontFamily: 'Newsreader, serif', fontSize: '20px', lineHeight: 1.5,
-                outline: 'none', backgroundColor: '#fff'
-              }}
-            />
-            <div style={{display: 'flex', gap: '10px', marginTop: '12px'}}>
-              <button onClick={() => speak(phrase)} aria-label="再听一次" style={{
-                backgroundColor: '#fff0f4', color: '#bc004b', border: 'none', borderRadius: '10px',
-                padding: '12px 16px', cursor: 'pointer',
-                fontFamily: 'Work Sans, sans-serif', fontSize: '13px', fontWeight: 600,
-                display: 'flex', alignItems: 'center', gap: '6px'
-              }}>
-                <span className="material-symbols-outlined" style={{fontSize: 18}}>volume_up</span>
-                再听
-              </button>
-              <button
-                onClick={submit}
-                disabled={input.trim().length === 0}
-                style={{
-                  flex: 1, backgroundColor: input.trim() ? '#bc004b' : '#d0c3c7', color: '#fff',
-                  border: 'none', borderRadius: '10px', padding: '12px 20px',
-                  cursor: input.trim() ? 'pointer' : 'default',
-                  fontFamily: 'Work Sans, sans-serif', fontSize: '13px', fontWeight: 600
-                }}>提交 →</button>
-            </div>
-          </>
-        )}
+                {card.hidden && !card.submitted ? (
+                  <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', color: '#bdb1b5', fontStyle: 'italic', margin: '0 0 10px', minHeight: '32px'}}>（已隐藏，凭记忆输入）</p>
+                ) : matched ? (
+                  <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', lineHeight: 1.6, margin: '0 0 10px', overflowWrap: 'anywhere'}}>
+                    {phrase.split('').map((ch, ci) => (
+                      <span key={ci} style={{
+                        color: matched[ci] ? '#2e7d32' : '#b71c1c',
+                        backgroundColor: matched[ci] ? 'transparent' : '#fce8e8',
+                        borderRadius: 3,
+                        padding: matched[ci] ? 0 : '0 2px',
+                      }}>{ch}</span>
+                    ))}
+                  </p>
+                ) : (
+                  <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', color: '#25181e', lineHeight: 1.6, margin: '0 0 10px', overflowWrap: 'anywhere'}}>{phrase}</p>
+                )}
 
-        {step === 'graded' && matched && (
-          <>
-            <div style={{textAlign: 'center', marginBottom: '24px'}}>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '48px', fontWeight: 700, color: score >= 80 ? '#2e7d32' : score >= 50 ? '#fb8c00' : '#bc004b', margin: '0 0 4px'}}>
-                {score.toFixed(2)} <span style={{fontSize: '20px', color: '#7f7478'}}>/ 100</span>
-              </p>
-              <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', margin: 0}}>本句正确率</p>
-            </div>
+                <textarea
+                  value={card.input}
+                  onChange={e => update(i, { input: e.target.value })}
+                  placeholder="在这里输入..."
+                  rows={2}
+                  style={{
+                    width: '100%', resize: 'vertical', minHeight: '60px',
+                    padding: '10px 12px', borderRadius: '10px',
+                    border: '1.5px solid ' + (card.submitted ? '#f0d8d8' : '#f0d8d8'),
+                    fontFamily: 'Newsreader, serif', fontSize: '17px', lineHeight: 1.5,
+                    outline: 'none', backgroundColor: card.submitted ? '#fff8f0' : '#fff',
+                  }}
+                />
 
-            <div style={{backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '12px', padding: '14px 16px', marginBottom: '12px'}}>
-              <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#7f7478', margin: '0 0 6px'}}>原句</p>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '22px', lineHeight: 1.6, margin: 0, overflowWrap: 'anywhere'}}>
-                {phrase.split('').map((ch, i) => (
-                  <span key={i} style={{
-                    color: matched[i] ? '#2e7d32' : '#b71c1c',
-                    backgroundColor: matched[i] ? 'transparent' : '#fce8e8',
-                    borderRadius: 3,
-                    padding: matched[i] ? 0 : '0 2px',
-                  }}>{ch}</span>
-                ))}
-              </p>
-            </div>
-
-            <div style={{backgroundColor: '#fff8f0', border: '1px solid #f0d8d8', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px'}}>
-              <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#7f7478', margin: '0 0 6px'}}>你的输入</p>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', lineHeight: 1.6, margin: 0, color: '#4d4447', overflowWrap: 'anywhere'}}>{input || '（空）'}</p>
-            </div>
-
-            <div style={{display: 'flex', gap: '10px'}}>
-              {!allDone ? (
-                <button onClick={next} style={{
-                  flex: 1, backgroundColor: '#bc004b', color: '#fff', border: 'none', borderRadius: '10px',
-                  padding: '14px 20px', cursor: 'pointer',
-                  fontFamily: 'Work Sans, sans-serif', fontSize: '14px', fontWeight: 600
-                }}>下一句 ({idx + 2}/{phrases.length}) →</button>
-              ) : (
-                <>
-                  <button onClick={restart} style={{
-                    backgroundColor: '#fff0f4', color: '#bc004b', border: 'none', borderRadius: '10px',
-                    padding: '14px 18px', cursor: 'pointer',
-                    fontFamily: 'Work Sans, sans-serif', fontSize: '13px', fontWeight: 600
-                  }}>重新开始</button>
-                  <button onClick={() => router.push('/')} style={{
-                    flex: 1, backgroundColor: '#bc004b', color: '#fff', border: 'none', borderRadius: '10px',
-                    padding: '14px 20px', cursor: 'pointer',
-                    fontFamily: 'Work Sans, sans-serif', fontSize: '14px', fontWeight: 600
-                  }}>完成 🎉 选新闻 →</button>
-                </>
-              )}
-            </div>
-
-            {allDone && history.length > 0 && (
-              <div style={{marginTop: '32px'}}>
-                <h3 style={{fontFamily: 'Newsreader, serif', fontSize: '20px', color: '#bc004b', margin: '0 0 12px'}}>总览</h3>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '16px', margin: '0 0 16px'}}>
-                  平均分 <strong style={{color: '#bc004b'}}>{(history.reduce((s, h) => s + h.score, 0) / history.length).toFixed(2)}</strong> / 100 · 共 {history.length} 句
-                </p>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', gap: '8px'}}>
+                  {card.submitted ? (
+                    <>
+                      <span style={{fontFamily: 'Newsreader, serif', fontSize: '20px', fontWeight: 700, color: scoreColor}}>
+                        {score !== null ? score.toFixed(2) : '—'}
+                        <span style={{fontSize: 12, color: '#7f7478', fontWeight: 400}}> / 100</span>
+                      </span>
+                      <button onClick={() => update(i, { submitted: false })} style={{
+                        background: 'none', border: 'none', color: '#7f7478', cursor: 'pointer',
+                        fontFamily: 'Work Sans, sans-serif', fontSize: '12px', textDecoration: 'underline'
+                      }}>重做</button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478'}}>
+                        {card.input.length} 字
+                      </span>
+                      <button
+                        onClick={() => update(i, { submitted: true })}
+                        disabled={card.input.trim().length === 0}
+                        style={{
+                          backgroundColor: card.input.trim() ? '#bc004b' : '#d0c3c7', color: '#fff',
+                          border: 'none', borderRadius: '8px', padding: '8px 16px',
+                          cursor: card.input.trim() ? 'pointer' : 'default',
+                          fontFamily: 'Work Sans, sans-serif', fontSize: '12px', fontWeight: 600
+                        }}>提交</button>
+                    </>
+                  )}
+                </div>
               </div>
-            )}
-          </>
-        )}
+            )
+          })}
+        </div>
       </section>
+
+      {scrolled && (
+        <button
+          onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}
+          aria-label="返回顶部"
+          style={{
+            position: 'fixed', right: '16px', bottom: '110px',
+            width: '48px', height: '48px', borderRadius: '50%',
+            backgroundColor: '#fff', color: '#bc004b',
+            border: '1px solid #f4dce4', cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(188,0,75,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 40
+          }}>
+          <span className="material-symbols-outlined" style={{fontSize: '24px'}}>arrow_upward</span>
+        </button>
+      )}
     </main>
   )
 }

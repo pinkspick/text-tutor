@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import ScrollUpButton from './components/ScrollUpButton'
 
 type NewsItem = {
   id: string
@@ -57,7 +58,12 @@ export default function HomePage() {
   return (
     <main style={{paddingBottom: '120px', maxWidth: '800px', margin: '0 auto'}}>
       <header style={{position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 50, backgroundColor: '#fff8f8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px'}}>
-        <h1 style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '24px', color: '#bc004b', margin: 0}}>文练</h1>
+        <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+          <button onClick={() => router.push('/learn')} aria-label="学习记录" style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex'}}>
+            <span className="material-symbols-outlined" style={{color: '#bc004b'}}>menu</span>
+          </button>
+          <h1 style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '24px', color: '#bc004b', margin: 0}}>文练</h1>
+        </div>
         <button onClick={load} disabled={loading} aria-label="刷新" style={{
           background: '#fff0f4', border: 'none', borderRadius: '50%',
           width: 40, height: 40, cursor: loading ? 'default' : 'pointer',
@@ -104,6 +110,8 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <ScrollUpButton />
     </main>
   )
 }
