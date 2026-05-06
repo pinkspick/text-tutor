@@ -6,7 +6,7 @@ import { recordTranslation } from '../../lib/learnLog'
 import { colorPinyinLine } from '../../lib/toneColors'
 
 const QUIZ_SIZE = 10
-const TIMER_SECONDS = 30
+const TIMER_SECONDS = 60
 
 type Q = {
   english: string
@@ -44,6 +44,7 @@ export default function TranslatePage() {
   const [inputs, setInputs] = useState<string[]>([])
   const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS)
   const [step, setStep] = useState<'active' | 'graded'>('active')
+  const [timerOn, setTimerOn] = useState(true)
   const submittedRef = useRef(false)
 
   useEffect(() => {
@@ -53,15 +54,25 @@ export default function TranslatePage() {
     setStep('active')
     setTimeLeft(TIMER_SECONDS)
     submittedRef.current = false
+    if (typeof window !== 'undefined') {
+      setTimerOn(sessionStorage.getItem('translateTimer') !== 'off')
+    }
   }, [])
 
   useEffect(() => {
-    if (step !== 'active') return
+    if (step !== 'active' || !timerOn) return
     if (timeLeft <= 0) { submit(); return }
     const t = setTimeout(() => setTimeLeft(s => s - 1), 1000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, timeLeft])
+  }, [step, timeLeft, timerOn])
+
+  function toggleTimer() {
+    const next = !timerOn
+    setTimerOn(next)
+    if (typeof window !== 'undefined') sessionStorage.setItem('translateTimer', next ? 'on' : 'off')
+    if (next) setTimeLeft(TIMER_SECONDS)
+  }
 
   function submit() {
     if (submittedRef.current || !questions) return
@@ -90,6 +101,9 @@ export default function TranslatePage() {
     setTimeLeft(TIMER_SECONDS)
     submittedRef.current = false
     setStep('active')
+    if (typeof window !== 'undefined') {
+      setTimerOn(sessionStorage.getItem('translateTimer') !== 'off')
+    }
   }
 
   function setInput(i: number, v: string) {
@@ -162,23 +176,30 @@ export default function TranslatePage() {
           <span className="material-symbols-outlined" style={{color: '#bc004b'}}>arrow_back</span>
         </button>
         <h1 style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '18px', color: '#bc004b', margin: 0}}>英中翻译 · {QUIZ_SIZE} 词</h1>
-        <button onClick={submit} style={{
-          backgroundColor: '#bc004b', color: '#fff', border: 'none',
-          borderRadius: '8px', padding: '8px 14px', cursor: 'pointer',
-          fontFamily: 'Work Sans, sans-serif', fontSize: '12px', fontWeight: 600
-        }}>提交</button>
+        <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
+          <button onClick={toggleTimer} aria-label={timerOn ? '关闭计时' : '开启计时'} style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex'}}>
+            <span className="material-symbols-outlined" style={{color: timerOn ? '#bc004b' : '#bdb1b5', fontSize: 22}}>{timerOn ? 'timer' : 'timer_off'}</span>
+          </button>
+          <button onClick={submit} style={{
+            backgroundColor: '#bc004b', color: '#fff', border: 'none',
+            borderRadius: '8px', padding: '8px 14px', cursor: 'pointer',
+            fontFamily: 'Work Sans, sans-serif', fontSize: '12px', fontWeight: 600
+          }}>提交</button>
+        </div>
       </header>
 
       <section style={{padding: '90px 16px 16px'}}>
-        <div style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: '16px', padding: '0 8px'}}>
-          <span style={{fontFamily: 'Newsreader, serif', fontSize: 28, fontWeight: 700, color: timeLeft <= 10 ? '#bc004b' : '#7f7478', minWidth: 36, textAlign: 'center'}}>{timeLeft}</span>
-          <div style={{flex: 1, height: 6, borderRadius: 3, background: '#e8e6e0', overflow: 'hidden'}}>
-            <div style={{height: 6, borderRadius: 3, background: timeLeft <= 10 ? '#bc004b' : '#993556', transition: 'width 1s linear', width: timerPct + '%'}} />
+        {timerOn && (
+          <div style={{display: 'flex', alignItems: 'center', gap: 10, marginBottom: '16px', padding: '0 8px'}}>
+            <span style={{fontFamily: 'Newsreader, serif', fontSize: 28, fontWeight: 700, color: timeLeft <= 10 ? '#bc004b' : '#7f7478', minWidth: 36, textAlign: 'center'}}>{timeLeft}</span>
+            <div style={{flex: 1, height: 6, borderRadius: 3, background: '#e8e6e0', overflow: 'hidden'}}>
+              <div style={{height: 6, borderRadius: 3, background: timeLeft <= 10 ? '#bc004b' : '#993556', transition: 'width 1s linear', width: timerPct + '%'}} />
+            </div>
           </div>
-        </div>
+        )}
 
         <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#7f7478', textAlign: 'center', marginBottom: '14px'}}>
-          根据英文输入对应的汉字 · 30 秒
+          根据英文输入对应的汉字 · {timerOn ? `${TIMER_SECONDS} 秒` : '不计时'}
         </p>
 
         <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
