@@ -45,12 +45,25 @@ export default function HomePage() {
 
   useEffect(() => { load() }, [])
 
-  function pick(item: NewsItem) {
-    const text = item.title + '\n\n' + item.summary
+  const [picking, setPicking] = useState<string | null>(null)
+
+  async function pick(item: NewsItem) {
+    setPicking(item.id)
+    let text = item.title + '\n\n' + item.summary
+    if (item.link && item.source === 'VOA 中文') {
+      try {
+        const r = await fetch('/api/article?url=' + encodeURIComponent(item.link), { signal: AbortSignal.timeout(12000) })
+        const d = await r.json()
+        if (d.text && typeof d.text === 'string' && d.text.length > item.summary.length) {
+          text = item.title + '\n\n' + d.text
+        }
+      } catch {}
+    }
     localStorage.setItem('current_text', JSON.stringify({
       text,
       source: item.source,
       title: item.title,
+      link: item.link,
       pickedAt: new Date().toISOString(),
     }))
     router.push('/analyze')
@@ -94,14 +107,16 @@ export default function HomePage() {
             <button
               key={it.id}
               onClick={() => pick(it)}
+              disabled={picking !== null}
               style={{
                 textAlign: 'left', backgroundColor: '#fff', border: '1px solid #f0d8d8',
-                borderRadius: '14px', overflow: 'hidden', cursor: 'pointer', display: 'block',
-                padding: 0, width: '100%'
+                borderRadius: '14px', cursor: picking ? 'wait' : 'pointer', display: 'flex',
+                gap: '12px', padding: '12px', width: '100%', alignItems: 'flex-start',
+                opacity: picking && picking !== it.id ? 0.4 : 1
               }}
             >
               {it.image && (
-                <div style={{width: '100%', aspectRatio: '16 / 9', backgroundColor: '#fff0f4', overflow: 'hidden'}}>
+                <div style={{flexShrink: 0, width: '72px', height: '72px', borderRadius: '8px', backgroundColor: '#fff0f4', overflow: 'hidden'}}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={it.image}
@@ -113,15 +128,15 @@ export default function HomePage() {
                   />
                 </div>
               )}
-              <div style={{padding: '14px 16px'}}>
+              <div style={{flex: 1, minWidth: 0}}>
                 <span style={{
-                  display: 'inline-block', fontFamily: 'Work Sans, sans-serif', fontSize: '10px', fontWeight: 600,
-                  padding: '3px 8px', borderRadius: '999px', marginBottom: '8px',
+                  display: 'inline-block', fontFamily: 'Work Sans, sans-serif', fontSize: '9px', fontWeight: 600,
+                  padding: '2px 7px', borderRadius: '999px', marginBottom: '6px',
                   backgroundColor: SOURCE_BG[it.source] || '#eee',
                   color: SOURCE_FG[it.source] || '#444',
                 }}>{it.source}</span>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', fontWeight: 700, color: '#25181e', margin: '0 0 6px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '13px', color: '#4d4447', margin: 0, lineHeight: 1.5, overflowWrap: 'anywhere'}}>{it.summary}</p>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '15px', fontWeight: 700, color: '#25181e', margin: '0 0 4px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '12px', color: '#4d4447', margin: 0, lineHeight: 1.4, overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>{it.summary}</p>
               </div>
             </button>
           ))}
