@@ -44,10 +44,12 @@ export default function LearnPage() {
   const totalQuizzes = days.reduce((s, d) => s + d.entry.quizzes.length, 0)
   const totalDictations = days.reduce((s, d) => s + d.entry.dictations.length, 0)
   const totalTranslations = days.reduce((s, d) => s + (d.entry.translations?.length || 0), 0)
+  const totalReviews = days.reduce((s, d) => s + (d.entry.reviews?.length || 0), 0)
   const allScores = days.flatMap(d => [
     ...d.entry.quizzes.map(q => q.score),
     ...d.entry.dictations.map(x => x.avgScore),
     ...(d.entry.translations || []).map(x => x.score),
+    ...(d.entry.reviews || []).map(x => x.score),
   ])
   const avgScore = allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : null
 
@@ -72,11 +74,14 @@ export default function LearnPage() {
       </header>
 
       <section style={{padding: '96px 24px 16px'}}>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '24px'}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px'}}>
           <Stat label="新生词" value={String(totalNew)} />
           <Stat label="听写" value={String(totalDictations)} />
           <Stat label="翻译" value={String(totalTranslations)} />
+        </div>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '24px'}}>
           <Stat label="测验" value={String(totalQuizzes)} />
+          <Stat label="复习" value={String(totalReviews)} />
           <Stat label="平均" value={avgScore !== null ? avgScore.toFixed(1) : '—'} />
         </div>
         <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '8px'}}>
@@ -93,7 +98,7 @@ export default function LearnPage() {
           <div key={date} style={{marginBottom: '40px'}}>
             <h2 style={{fontFamily: 'Newsreader, serif', fontSize: '28px', fontWeight: 700, color: '#25181e', margin: '0 0 4px'}}>{date}</h2>
             <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '16px'}}>
-              {entry.seenTexts.length} 篇 · {entry.newWords.length} 新词 · {entry.dictations.length} 听写 · {(entry.translations || []).length} 翻译 · {entry.quizzes.length} 测验
+              {entry.seenTexts.length} 篇 · {entry.newWords.length} 新词 · {entry.dictations.length} 听写 · {(entry.translations || []).length} 翻译 · {entry.quizzes.length} 测验 · {(entry.reviews || []).length} 复习
             </p>
 
             {entry.seenTexts.length > 0 && (
@@ -156,6 +161,38 @@ export default function LearnPage() {
                       </div>
                     )
                   })}
+                </div>
+              </div>
+            )}
+
+            {(entry.reviews || []).length > 0 && (
+              <div style={{marginBottom: '20px'}}>
+                <h3 style={{fontFamily: 'Newsreader, serif', fontSize: '16px', color: '#bc004b', margin: '0 0 10px'}}>夜间复习</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                  {(entry.reviews || []).map((r, ri) => (
+                    <div key={ri} style={{backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '10px', padding: '12px 14px'}}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px'}}>
+                        <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '12px', color: '#4d4447', margin: 0}}>
+                          <span style={{color: '#7f7478'}}>{r.time}</span> · 复习 {r.reviewedDate}
+                        </p>
+                        <p style={{fontFamily: 'Newsreader, serif', fontSize: '20px', fontWeight: 700, color: '#bc004b', margin: 0, whiteSpace: 'nowrap'}}>
+                          {r.score.toFixed(2)} <span style={{fontSize: '12px', color: '#7f7478'}}>/ 100</span>
+                        </p>
+                      </div>
+                      <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', margin: '0 0 6px'}}>
+                        {r.writtenCount} / {r.totalWords} 写出 · {r.missed.length} 漏掉
+                      </p>
+                      {r.missed.length > 0 && (
+                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px'}}>
+                          {r.missed.map((w, wi) => (
+                            <span key={wi} style={{backgroundColor: '#fce8e8', color: '#b71c1c', borderRadius: '6px', padding: '3px 8px', fontFamily: 'Newsreader, serif', fontSize: '14px', fontWeight: 600}}>
+                              {w.word}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

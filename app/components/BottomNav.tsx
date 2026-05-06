@@ -11,13 +11,14 @@ export default function BottomNav() {
     { href: '/dictate', icon: 'edit_note', label: '听写' },
     { href: '/translate', icon: 'translate', label: '翻译' },
     { href: '/quiz', icon: 'quiz', label: '测验' },
+    { href: '/review', icon: 'psychology', label: '复习' },
   ]
 
   return (
     <nav style={{
       position: 'fixed', bottom: 0, left: 0, width: '100%',
       display: 'flex', justifyContent: 'space-around', alignItems: 'center',
-      padding: '12px 16px 24px',
+      padding: '10px 4px 20px',
       backgroundColor: 'rgba(255,248,248,0.85)',
       backdropFilter: 'blur(20px)',
       borderRadius: '2rem 2rem 0 0',
@@ -29,7 +30,7 @@ export default function BottomNav() {
         return (
           <Link key={tab.href} href={tab.href} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            padding: '6px 12px', borderRadius: '9999px',
+            padding: '5px 8px', borderRadius: '9999px',
             backgroundColor: active ? '#f4dce4' : 'transparent',
             color: active ? '#bc004b' : '#4d4447',
             textDecoration: 'none', transition: 'all 0.2s'

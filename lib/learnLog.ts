@@ -34,12 +34,23 @@ export type TranslationRecord = {
   questions: { english: string; expected: string; given: string; correct: boolean }[]
 }
 
+export type ReviewRecord = {
+  time: string
+  reviewedDate: string
+  totalWords: number
+  writtenCount: number
+  score: number
+  written: { word: string; pinyin: string }[]
+  missed: { word: string; pinyin: string }[]
+}
+
 export type DayEntry = {
   newWords: HskWord[]
   seenTexts: { title: string; source: string }[]
   quizzes: QuizRecord[]
   dictations: DictationRecord[]
   translations: TranslationRecord[]
+  reviews: ReviewRecord[]
 }
 
 export type LearnLog = {
@@ -50,7 +61,7 @@ export type LearnLog = {
 const KEY = 'learn_log'
 
 function emptyLog(): LearnLog { return { allTimeWords: [], days: {} } }
-function emptyDay(): DayEntry { return { newWords: [], seenTexts: [], quizzes: [], dictations: [], translations: [] } }
+function emptyDay(): DayEntry { return { newWords: [], seenTexts: [], quizzes: [], dictations: [], translations: [], reviews: [] } }
 
 function loadLog(): LearnLog {
   if (typeof window === 'undefined') return emptyLog()
@@ -68,6 +79,7 @@ function loadLog(): LearnLog {
           quizzes: Array.isArray(d.quizzes) ? d.quizzes : [],
           dictations: Array.isArray(d.dictations) ? d.dictations : [],
           translations: Array.isArray(d.translations) ? d.translations : [],
+          reviews: Array.isArray(d.reviews) ? d.reviews : [],
         }
       }
     }
@@ -142,6 +154,14 @@ export function recordTranslation(record: Omit<TranslationRecord, 'time'>) {
   saveLog(log)
 }
 
+export function recordReview(record: Omit<ReviewRecord, 'time'>) {
+  const log = loadLog()
+  const today = todayKey()
+  if (!log.days[today]) log.days[today] = emptyDay()
+  log.days[today].reviews.push({ ...record, time: nowTime() })
+  saveLog(log)
+}
+
 export function getAllDays(): { date: string; entry: DayEntry }[] {
   const log = loadLog()
   return Object.keys(log.days).sort((a, b) => b.localeCompare(a)).map(date => ({ date, entry: log.days[date] }))
@@ -181,6 +201,17 @@ export function buildMarkdown(): string {
           for (const p of wrongs) {
             md += `- 期望: ${p.expected}\n  输入: ${p.actual} _(${p.score.toFixed(0)}/100)_\n`
           }
+          md += '\n'
+        }
+      }
+    }
+    if (entry.reviews && entry.reviews.length) {
+      md += `### 夜间复习 · ${entry.reviews.length} 次\n\n`
+      for (const r of entry.reviews) {
+        md += `**${r.time}** (复习 ${r.reviewedDate} 的词) — ${r.score.toFixed(2)} / 100 (${r.writtenCount}/${r.totalWords} 写出)\n\n`
+        if (r.missed.length) {
+          md += `漏掉的词:\n\n`
+          for (const w of r.missed) md += `- ${w.word} \`${w.pinyin}\`\n`
           md += '\n'
         }
       }
