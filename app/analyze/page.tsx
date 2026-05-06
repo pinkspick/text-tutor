@@ -121,7 +121,7 @@ export default function AnalyzePage() {
 
       <section style={{padding: '96px 24px 16px'}}>
         <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#b90c55', display: 'block', marginBottom: '8px'}}>{data.source}</span>
-        <h2 style={{fontFamily: 'Newsreader, serif', fontSize: '22px', fontWeight: 700, lineHeight: 1.3, margin: '0 0 16px', overflowWrap: 'anywhere'}}>{data.title}</h2>
+        <h2 style={{fontFamily: 'Newsreader, serif', fontSize: '24px', fontWeight: 700, lineHeight: 1.3, margin: '0 0 16px', overflowWrap: 'anywhere'}}>{data.title}</h2>
         <div style={{display: 'flex', gap: '6px', marginBottom: '20px'}}>
           {viewButtons.map(btn => (
             <button key={btn.mode} onClick={() => setView(btn.mode)} style={{
@@ -138,7 +138,7 @@ export default function AnalyzePage() {
 
       <section style={{padding: '0 24px 32px'}}>
         {view === 'hanzi' && (
-          <div style={{fontFamily: 'Newsreader, serif', fontSize: '17px', color: '#25181e', lineHeight: 1.8}}>
+          <div style={{fontFamily: 'Newsreader, serif', fontSize: '19px', color: '#25181e', lineHeight: 1.8}}>
             {paragraphs.map((p, i) => (
               <p key={i} style={{margin: '0 0 16px', overflowWrap: 'anywhere'}}>{p}</p>
             ))}
@@ -152,16 +152,16 @@ export default function AnalyzePage() {
                 {chars.map((c, ci) => {
                   if (!c.py) {
                     return (
-                      <span key={ci} style={{display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minHeight: '40px', fontFamily: 'Newsreader, serif', fontSize: 17, color: '#25181e', padding: '0 1px'}}>
-                        <span style={{height: '14px'}}> </span>
+                      <span key={ci} style={{display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', minHeight: '46px', fontFamily: 'Newsreader, serif', fontSize: 22, color: '#25181e', padding: '0 1px'}}>
+                        <span style={{height: '15px'}}> </span>
                         <span>{c.ch}</span>
                       </span>
                     )
                   }
                   return (
                     <span key={ci} style={{display: 'inline-flex', flexDirection: 'column', alignItems: 'center', padding: '0 2px', marginBottom: '4px'}}>
-                      <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: 11, color: getToneColor(c.py), fontWeight: 600, lineHeight: 1, height: '13px'}}>{c.py}</span>
-                      <span style={{fontFamily: 'Newsreader, serif', fontSize: 22, color: '#25181e', lineHeight: 1.3, marginTop: '2px'}}>{c.ch}</span>
+                      <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: 12, color: getToneColor(c.py), fontWeight: 600, lineHeight: 1, height: '14px'}}>{c.py}</span>
+                      <span style={{fontFamily: 'Newsreader, serif', fontSize: 26, color: '#25181e', lineHeight: 1.3, marginTop: '2px'}}>{c.ch}</span>
                     </span>
                   )
                 })}
@@ -174,7 +174,7 @@ export default function AnalyzePage() {
           <div>
             {paragraphs.map((p, i) => (
               <div key={i} style={{marginBottom: '20px'}}>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '17px', color: '#25181e', margin: '0 0 6px', lineHeight: 1.6, overflowWrap: 'anywhere'}}>{p}</p>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '19px', color: '#25181e', margin: '0 0 6px', lineHeight: 1.6, overflowWrap: 'anywhere'}}>{p}</p>
                 <p style={{fontFamily: 'Newsreader, serif', fontSize: '14px', color: '#4d4447', fontStyle: 'italic', margin: 0, lineHeight: 1.5, overflowWrap: 'anywhere'}}>
                   {translations[p] || (translating ? '翻译中...' : '—')}
                 </p>
@@ -199,7 +199,7 @@ export default function AnalyzePage() {
               >
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', marginBottom: '4px'}}>
                   <div style={{flex: 1, minWidth: 0}}>
-                    <p style={{fontFamily: 'Newsreader, serif', fontSize: '22px', fontWeight: 700, color: '#25181e', margin: '0 0 2px'}}>{w.word}</p>
+                    <p style={{fontFamily: 'Newsreader, serif', fontSize: '24px', fontWeight: 700, color: '#25181e', margin: '0 0 2px'}}>{w.word}</p>
                     <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '13px', margin: 0, fontWeight: 600}}>
                       {colorPinyinLine(w.pinyin).map((syl, i) => (
                         <span key={i} style={{color: syl.color, marginRight: 4}}>{syl.text}</span>

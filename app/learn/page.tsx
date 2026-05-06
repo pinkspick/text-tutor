@@ -43,9 +43,11 @@ export default function LearnPage() {
   const totalNew = days.reduce((s, d) => s + d.entry.newWords.length, 0)
   const totalQuizzes = days.reduce((s, d) => s + d.entry.quizzes.length, 0)
   const totalDictations = days.reduce((s, d) => s + d.entry.dictations.length, 0)
+  const totalTranslations = days.reduce((s, d) => s + (d.entry.translations?.length || 0), 0)
   const allScores = days.flatMap(d => [
     ...d.entry.quizzes.map(q => q.score),
     ...d.entry.dictations.map(x => x.avgScore),
+    ...(d.entry.translations || []).map(x => x.score),
   ])
   const avgScore = allScores.length > 0 ? allScores.reduce((a, b) => a + b, 0) / allScores.length : null
 
@@ -70,11 +72,12 @@ export default function LearnPage() {
       </header>
 
       <section style={{padding: '96px 24px 16px'}}>
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '24px'}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '24px'}}>
           <Stat label="新生词" value={String(totalNew)} />
           <Stat label="听写" value={String(totalDictations)} />
+          <Stat label="翻译" value={String(totalTranslations)} />
           <Stat label="测验" value={String(totalQuizzes)} />
-          <Stat label="平均分" value={avgScore !== null ? avgScore.toFixed(1) : '—'} />
+          <Stat label="平均" value={avgScore !== null ? avgScore.toFixed(1) : '—'} />
         </div>
         <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '8px'}}>
           复制后可粘贴到 Google Docs · 最新日期在最前
@@ -90,7 +93,7 @@ export default function LearnPage() {
           <div key={date} style={{marginBottom: '40px'}}>
             <h2 style={{fontFamily: 'Newsreader, serif', fontSize: '28px', fontWeight: 700, color: '#25181e', margin: '0 0 4px'}}>{date}</h2>
             <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '16px'}}>
-              {entry.seenTexts.length} 篇 · {entry.newWords.length} 新词 · {entry.dictations.length} 听写 · {entry.quizzes.length} 测验
+              {entry.seenTexts.length} 篇 · {entry.newWords.length} 新词 · {entry.dictations.length} 听写 · {(entry.translations || []).length} 翻译 · {entry.quizzes.length} 测验
             </p>
 
             {entry.seenTexts.length > 0 && (
@@ -99,7 +102,7 @@ export default function LearnPage() {
                 <div style={{display: 'flex', flexDirection: 'column', gap: '6px'}}>
                   {entry.seenTexts.map((s, si) => (
                     <div key={si} style={{backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '10px', padding: '10px 14px'}}>
-                      <p style={{fontFamily: 'Newsreader, serif', fontSize: '15px', fontWeight: 700, color: '#25181e', margin: '0 0 2px', overflowWrap: 'anywhere'}}>{s.title}</p>
+                      <p style={{fontFamily: 'Newsreader, serif', fontSize: '17px', fontWeight: 700, color: '#25181e', margin: '0 0 2px', overflowWrap: 'anywhere'}}>{s.title}</p>
                       <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', margin: 0}}>{s.source}</p>
                     </div>
                   ))}
@@ -114,7 +117,7 @@ export default function LearnPage() {
                   {entry.newWords.map(w => (
                     <div key={w.word} style={{backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '10px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start'}}>
                       <div style={{flex: 1, minWidth: 0}}>
-                        <p style={{fontFamily: 'Newsreader, serif', fontSize: '20px', fontWeight: 700, color: '#25181e', margin: '0 0 2px'}}>{w.word}</p>
+                        <p style={{fontFamily: 'Newsreader, serif', fontSize: '24px', fontWeight: 700, color: '#25181e', margin: '0 0 2px'}}>{w.word}</p>
                         <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '12px', margin: '0 0 2px', fontWeight: 600}}>
                           {colorPinyinLine(w.pinyin).map((syl, i) => (
                             <span key={i} style={{color: syl.color, marginRight: 4}}>{syl.text}</span>
@@ -150,6 +153,41 @@ export default function LearnPage() {
                         <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', margin: '0 0 6px'}}>
                           {d.submittedCount} / {d.totalPhrases} 句 · {wrongs.length} 句有错
                         </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {(entry.translations || []).length > 0 && (
+              <div style={{marginBottom: '20px'}}>
+                <h3 style={{fontFamily: 'Newsreader, serif', fontSize: '16px', color: '#bc004b', margin: '0 0 10px'}}>英中翻译</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                  {(entry.translations || []).map((t, ti) => {
+                    const wrongs = t.questions.filter(q => !q.correct)
+                    return (
+                      <div key={ti} style={{backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '10px', padding: '12px 14px'}}>
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px'}}>
+                          <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '12px', color: '#4d4447', margin: 0}}>
+                            <span style={{color: '#7f7478'}}>{t.time}</span>
+                          </p>
+                          <p style={{fontFamily: 'Newsreader, serif', fontSize: '20px', fontWeight: 700, color: '#bc004b', margin: 0, whiteSpace: 'nowrap'}}>
+                            {t.score.toFixed(2)} <span style={{fontSize: '12px', color: '#7f7478'}}>/ 100</span>
+                          </p>
+                        </div>
+                        <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', margin: '0 0 6px'}}>
+                          {t.correct} / {t.total} 正确 · {wrongs.length} 错误
+                        </p>
+                        {wrongs.length > 0 && (
+                          <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px'}}>
+                            {wrongs.map((w, wi) => (
+                              <span key={wi} style={{backgroundColor: '#fce8e8', color: '#b71c1c', borderRadius: '6px', padding: '3px 8px', fontFamily: 'Work Sans, sans-serif', fontSize: '12px'}}>
+                                {w.expected} <span style={{opacity: 0.7, fontSize: '10px', fontStyle: 'italic'}}>{w.english.slice(0, 20)}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })}

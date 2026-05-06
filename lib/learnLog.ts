@@ -26,11 +26,20 @@ export type DictationRecord = {
   perPhrase: { expected: string; actual: string; score: number }[]
 }
 
+export type TranslationRecord = {
+  time: string
+  score: number
+  correct: number
+  total: number
+  questions: { english: string; expected: string; given: string; correct: boolean }[]
+}
+
 export type DayEntry = {
   newWords: HskWord[]
   seenTexts: { title: string; source: string }[]
   quizzes: QuizRecord[]
   dictations: DictationRecord[]
+  translations: TranslationRecord[]
 }
 
 export type LearnLog = {
@@ -41,7 +50,7 @@ export type LearnLog = {
 const KEY = 'learn_log'
 
 function emptyLog(): LearnLog { return { allTimeWords: [], days: {} } }
-function emptyDay(): DayEntry { return { newWords: [], seenTexts: [], quizzes: [], dictations: [] } }
+function emptyDay(): DayEntry { return { newWords: [], seenTexts: [], quizzes: [], dictations: [], translations: [] } }
 
 function loadLog(): LearnLog {
   if (typeof window === 'undefined') return emptyLog()
@@ -58,6 +67,7 @@ function loadLog(): LearnLog {
           seenTexts: Array.isArray(d.seenTexts) ? d.seenTexts : [],
           quizzes: Array.isArray(d.quizzes) ? d.quizzes : [],
           dictations: Array.isArray(d.dictations) ? d.dictations : [],
+          translations: Array.isArray(d.translations) ? d.translations : [],
         }
       }
     }
@@ -124,6 +134,14 @@ export function recordDictation(record: Omit<DictationRecord, 'time'>) {
   saveLog(log)
 }
 
+export function recordTranslation(record: Omit<TranslationRecord, 'time'>) {
+  const log = loadLog()
+  const today = todayKey()
+  if (!log.days[today]) log.days[today] = emptyDay()
+  log.days[today].translations.push({ ...record, time: nowTime() })
+  saveLog(log)
+}
+
 export function getAllDays(): { date: string; entry: DayEntry }[] {
   const log = loadLog()
   return Object.keys(log.days).sort((a, b) => b.localeCompare(a)).map(date => ({ date, entry: log.days[date] }))
@@ -162,6 +180,20 @@ export function buildMarkdown(): string {
           md += `错处:\n\n`
           for (const p of wrongs) {
             md += `- 期望: ${p.expected}\n  输入: ${p.actual} _(${p.score.toFixed(0)}/100)_\n`
+          }
+          md += '\n'
+        }
+      }
+    }
+    if (entry.translations.length) {
+      md += `### 英中翻译 · ${entry.translations.length} 次\n\n`
+      for (const t of entry.translations) {
+        md += `**${t.time}** — ${t.score.toFixed(2)} / 100 (${t.correct}/${t.total} 正确)\n\n`
+        const wrongs = t.questions.filter(q => !q.correct)
+        if (wrongs.length) {
+          md += `错题:\n\n`
+          for (const w of wrongs) {
+            md += `- _${w.english}_ → 正确: **${w.expected}** · 你答: ${w.given || '(空)'}\n`
           }
           md += '\n'
         }

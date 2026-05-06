@@ -9,6 +9,7 @@ export default function BottomNav() {
     { href: '/', icon: 'newspaper', label: '阅读' },
     { href: '/analyze', icon: 'menu_book', label: '词汇' },
     { href: '/dictate', icon: 'edit_note', label: '听写' },
+    { href: '/translate', icon: 'translate', label: '翻译' },
     { href: '/quiz', icon: 'quiz', label: '测验' },
   ]
 

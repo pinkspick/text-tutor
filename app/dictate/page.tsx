@@ -201,7 +201,7 @@ export default function DictatePage() {
                     <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478', fontWeight: 600}}>第 {i + 1} 句</span>
                     <span style={{fontFamily: 'Newsreader, serif', fontSize: '16px', fontWeight: 700, color: r.score >= 80 ? '#2e7d32' : r.score >= 50 ? '#fb8c00' : '#bc004b'}}>{r.score.toFixed(2)} / 100</span>
                   </div>
-                  <p style={{fontFamily: 'Newsreader, serif', fontSize: '15px', lineHeight: 1.6, margin: 0, overflowWrap: 'anywhere'}}>
+                  <p style={{fontFamily: 'Newsreader, serif', fontSize: '17px', lineHeight: 1.6, margin: 0, overflowWrap: 'anywhere'}}>
                     {r.expected.split('').map((ch, ci) => (
                       <span key={ci} style={{color: m[ci] ? '#2e7d32' : '#b71c1c', backgroundColor: m[ci] ? 'transparent' : '#fce8e8', borderRadius: 3, padding: m[ci] ? 0 : '0 2px'}}>{ch}</span>
                     ))}
@@ -239,7 +239,7 @@ export default function DictatePage() {
             </div>
             <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#7f7478', textAlign: 'center', marginBottom: '20px'}}>读熟、听熟，倒计时结束后开始默写</p>
             <div style={{backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '14px', padding: '24px 20px', marginBottom: '16px'}}>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '24px', fontWeight: 600, lineHeight: 1.5, color: '#25181e', margin: 0, overflowWrap: 'anywhere'}}>{phrase}</p>
+              <p style={{fontFamily: 'Newsreader, serif', fontSize: '28px', fontWeight: 600, lineHeight: 1.5, color: '#25181e', margin: 0, overflowWrap: 'anywhere'}}>{phrase}</p>
             </div>
             <div style={{display: 'flex', gap: '10px'}}>
               <button onClick={() => speak(phrase)} aria-label="朗读" style={{
@@ -271,7 +271,7 @@ export default function DictatePage() {
               style={{
                 width: '100%', minHeight: '160px', resize: 'vertical',
                 padding: '16px', borderRadius: '12px', border: '2px solid #f0d8d8',
-                fontFamily: 'Newsreader, serif', fontSize: '20px', lineHeight: 1.5,
+                fontFamily: 'Newsreader, serif', fontSize: '22px', lineHeight: 1.5,
                 outline: 'none', backgroundColor: '#fff', boxSizing: 'border-box'
               }}
             />
@@ -309,7 +309,7 @@ export default function DictatePage() {
 
             <div style={{backgroundColor: '#fff', border: '1px solid #f0d8d8', borderRadius: '12px', padding: '14px 16px', marginBottom: '12px'}}>
               <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#7f7478', margin: '0 0 6px'}}>原句</p>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '20px', lineHeight: 1.6, margin: 0, overflowWrap: 'anywhere'}}>
+              <p style={{fontFamily: 'Newsreader, serif', fontSize: '24px', lineHeight: 1.6, margin: 0, overflowWrap: 'anywhere'}}>
                 {phrase.split('').map((ch, i) => (
                   <span key={i} style={{
                     color: matched[i] ? '#2e7d32' : '#b71c1c',
@@ -323,7 +323,7 @@ export default function DictatePage() {
 
             <div style={{backgroundColor: '#fff8f0', border: '1px solid #f0d8d8', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px'}}>
               <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.15em', color: '#7f7478', margin: '0 0 6px'}}>你的输入</p>
-              <p style={{fontFamily: 'Newsreader, serif', fontSize: '17px', lineHeight: 1.6, margin: 0, color: '#4d4447', overflowWrap: 'anywhere'}}>{input || '（空）'}</p>
+              <p style={{fontFamily: 'Newsreader, serif', fontSize: '19px', lineHeight: 1.6, margin: 0, color: '#4d4447', overflowWrap: 'anywhere'}}>{input || '（空）'}</p>
             </div>
 
             <div style={{display: 'flex', gap: '10px'}}>

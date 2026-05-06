@@ -135,8 +135,8 @@ export default function HomePage() {
                   backgroundColor: SOURCE_BG[it.source] || '#eee',
                   color: SOURCE_FG[it.source] || '#444',
                 }}>{it.source}</span>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '15px', fontWeight: 700, color: '#25181e', margin: '0 0 4px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '12px', color: '#4d4447', margin: 0, lineHeight: 1.4, overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>{it.summary}</p>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '17px', fontWeight: 700, color: '#25181e', margin: '0 0 4px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '14px', color: '#4d4447', margin: 0, lineHeight: 1.4, overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>{it.summary}</p>
               </div>
             </button>
           ))}
