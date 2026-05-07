@@ -24,7 +24,11 @@ export async function GET(req: NextRequest) {
 
   let parsed: URL
   try { parsed = new URL(url) } catch { return NextResponse.json({ text: '', error: 'bad url' }, { status: 400 }) }
-  const allowed = ['zaobao.com.sg', 'www.zaobao.com.sg']
+  const allowed = [
+    'zaobao.com.sg', 'www.zaobao.com.sg',
+    '163.com', 'www.163.com',
+    '36kr.com', 'www.36kr.com',
+  ]
   if (!allowed.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
     return NextResponse.json({ text: '', error: 'host not allowed' }, { status: 400 })
   }
