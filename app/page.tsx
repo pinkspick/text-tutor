@@ -13,29 +13,45 @@ type NewsItem = {
   publishedAt?: string
 }
 
+type Category = { key: string; label: string }
+
+const DEFAULT_CATEGORIES: Category[] = [
+  { key: 'current',  label: '时事' },
+  { key: 'world',    label: '国际' },
+  { key: 'tech',     label: '科技' },
+  { key: 'culture',  label: '文化' },
+  { key: 'history',  label: '历史' },
+  { key: 'food',     label: '美食' },
+  { key: 'feature',  label: '特写' },
+]
+
 const SOURCE_BG: Record<string, string> = {
-  'VOA 中文': '#fff3e0',
+  '联合早报': '#e3f2fd',
   '百度热搜': '#fff0f4',
 }
 const SOURCE_FG: Record<string, string> = {
-  'VOA 中文': '#e65100',
+  '联合早报': '#0d47a1',
   '百度热搜': '#bc004b',
 }
 
 export default function HomePage() {
   const [items, setItems] = useState<NewsItem[]>([])
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES)
+  const [activeCat, setActiveCat] = useState<string>('current')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [picking, setPicking] = useState<string | null>(null)
   const router = useRouter()
 
-  async function load() {
+  async function load(cat: string) {
     setLoading(true)
     setError('')
     try {
-      const r = await fetch('/api/news?t=' + Date.now())
+      const r = await fetch('/api/news?cat=' + cat + '&t=' + Date.now())
       const d = await r.json()
       setItems(Array.isArray(d.items) ? d.items : [])
-      if (!Array.isArray(d.items) || d.items.length === 0) setError('暂无新闻，请稍后再试')
+      if (Array.isArray(d.categories) && d.categories.length) setCategories(d.categories)
+      if (!Array.isArray(d.items) || d.items.length === 0) setError('暂无内容，请稍后再试或换一个分类')
     } catch {
       setError('加载失败，请检查网络')
     } finally {
@@ -43,19 +59,20 @@ export default function HomePage() {
     }
   }
 
-  useEffect(() => { load() }, [])
-
-  const [picking, setPicking] = useState<string | null>(null)
+  useEffect(() => { load(activeCat) }, [activeCat])
 
   async function pick(item: NewsItem) {
     setPicking(item.id)
     let text = item.title + '\n\n' + item.summary
-    if (item.link && item.source === 'VOA 中文') {
+    if (item.link) {
       try {
-        const r = await fetch('/api/article?url=' + encodeURIComponent(item.link), { signal: AbortSignal.timeout(12000) })
+        const r = await fetch('/api/article?url=' + encodeURIComponent(item.link), { signal: AbortSignal.timeout(13000) })
         const d = await r.json()
-        if (d.text && typeof d.text === 'string' && d.text.length > item.summary.length) {
-          text = item.title + '\n\n' + d.text
+        const summary = d.ogDescription && typeof d.ogDescription === 'string' ? d.ogDescription : item.summary
+        if (d.text && typeof d.text === 'string' && d.text.length > 80) {
+          text = item.title + '\n\n' + (summary && summary !== item.title ? summary + '\n\n' : '') + d.text
+        } else if (summary && summary !== item.summary) {
+          text = item.title + '\n\n' + summary
         }
       } catch {}
     }
@@ -78,7 +95,7 @@ export default function HomePage() {
           </button>
           <h1 style={{fontFamily: 'Newsreader, serif', fontStyle: 'italic', fontSize: '24px', color: '#bc004b', margin: 0}}>文练</h1>
         </div>
-        <button onClick={load} disabled={loading} aria-label="刷新" style={{
+        <button onClick={() => load(activeCat)} disabled={loading} aria-label="刷新" style={{
           background: '#fff0f4', border: 'none', borderRadius: '50%',
           width: 40, height: 40, cursor: loading ? 'default' : 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
@@ -92,12 +109,41 @@ export default function HomePage() {
 
       <style>{`@keyframes spin { from {transform: rotate(0)} to {transform: rotate(360deg)} }`}</style>
 
-      <section style={{padding: '96px 24px 16px'}}>
-        <h2 style={{fontFamily: 'Newsreader, serif', fontSize: '32px', fontWeight: 700, lineHeight: 1.1, marginBottom: '4px'}}>选篇文章</h2>
-        <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', margin: 0}}>新闻 · 热搜 · 实时刷新</p>
+      <section style={{padding: '96px 24px 8px'}}>
+        <h2 style={{fontFamily: 'Newsreader, serif', fontSize: '30px', fontWeight: 700, lineHeight: 1.1, marginBottom: '4px'}}>选篇文章</h2>
+        <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', margin: 0}}>联合早报 · 百度热搜 · 实时刷新</p>
       </section>
 
-      <section style={{padding: '0 16px'}}>
+      <nav style={{
+        position: 'sticky', top: '72px', zIndex: 40,
+        padding: '8px 0',
+        backgroundColor: '#fff8f8',
+      }}>
+        <div style={{
+          display: 'flex', gap: '8px', overflowX: 'auto', padding: '0 16px',
+          scrollbarWidth: 'none' as const,
+        }}>
+          {categories.map(cat => {
+            const active = cat.key === activeCat
+            return (
+              <button
+                key={cat.key}
+                onClick={() => setActiveCat(cat.key)}
+                style={{
+                  flexShrink: 0,
+                  padding: '8px 16px', borderRadius: '999px',
+                  backgroundColor: active ? '#bc004b' : '#fff0f4',
+                  color: active ? '#fff' : '#bc004b',
+                  border: 'none', cursor: 'pointer',
+                  fontFamily: 'Newsreader, serif', fontSize: '15px', fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}>{cat.label}</button>
+            )
+          })}
+        </div>
+      </nav>
+
+      <section style={{padding: '8px 16px 0'}}>
         {error && <p style={{padding: '20px', textAlign: 'center', fontFamily: 'Newsreader, serif', fontStyle: 'italic', color: '#7f7478'}}>{error}</p>}
         {loading && items.length === 0 && (
           <p style={{padding: '40px 20px', textAlign: 'center', fontFamily: 'Newsreader, serif', fontStyle: 'italic', color: '#7f7478'}}>加载中...</p>
@@ -135,8 +181,10 @@ export default function HomePage() {
                   backgroundColor: SOURCE_BG[it.source] || '#eee',
                   color: SOURCE_FG[it.source] || '#444',
                 }}>{it.source}</span>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '17px', fontWeight: 700, color: '#25181e', margin: '0 0 4px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '14px', color: '#4d4447', margin: 0, lineHeight: 1.4, overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>{it.summary}</p>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '18px', fontWeight: 700, color: '#25181e', margin: '0 0 4px', lineHeight: 1.3, overflowWrap: 'anywhere'}}>{it.title}</p>
+                {it.summary && it.summary !== it.title && (
+                  <p style={{fontFamily: 'Newsreader, serif', fontSize: '14px', color: '#4d4447', margin: 0, lineHeight: 1.4, overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>{it.summary}</p>
+                )}
               </div>
             </button>
           ))}

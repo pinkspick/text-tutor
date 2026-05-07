@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -13,13 +13,29 @@ export type NewsItem = {
   publishedAt?: string
 }
 
+type CategoryDef = {
+  key: string
+  label: string
+  zaobaoPaths: string[]
+  includeBaidu: boolean
+}
+
+const CATEGORIES: CategoryDef[] = [
+  { key: 'current',  label: '时事',   zaobaoPaths: ['news/china'],                includeBaidu: true },
+  { key: 'world',    label: '国际',   zaobaoPaths: ['news/world'],                includeBaidu: false },
+  { key: 'tech',     label: '科技',   zaobaoPaths: ['keywords/ke-ji'],            includeBaidu: false },
+  { key: 'culture',  label: '文化',   zaobaoPaths: ['lifestyle/culture'],         includeBaidu: false },
+  { key: 'history',  label: '历史',   zaobaoPaths: ['lifestyle/history-heritage'],includeBaidu: false },
+  { key: 'food',     label: '美食',   zaobaoPaths: ['lifestyle/food'],            includeBaidu: false },
+  { key: 'feature',  label: '特写',   zaobaoPaths: ['lifestyle/feature'],         includeBaidu: false },
+]
+
+export const KNOWN_CATEGORIES = CATEGORIES.map(c => ({ key: c.key, label: c.label }))
+
 function decodeEntities(s: string): string {
   return s
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/&[a-z]+;/g, '')
 }
@@ -38,55 +54,34 @@ function hash(s: string): string {
   return Math.abs(h).toString(36)
 }
 
-function parseRSS(xml: string): { title: string; description: string; link?: string; pubDate?: string; image?: string }[] {
-  const items: { title: string; description: string; link?: string; pubDate?: string; image?: string }[] = []
-  for (const m of xml.matchAll(/<item\b[\s\S]*?<\/item>/g)) {
-    const block = m[0]
-    const t = block.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)
-    const d = block.match(/<description[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/)
-    const l = block.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/)
-    const p = block.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/)
-    const enc = block.match(/<enclosure[^>]*url="([^"]+)"[^>]*type="image\/[^"]*"/i)
-    const mediaT = block.match(/<media:thumbnail[^>]*url="([^"]+)"/i)
-    const mediaC = block.match(/<media:content[^>]*url="([^"]+)"[^>]*type="image\/[^"]*"/i)
-    const imgInDesc = d?.[1].match(/<img[^>]*src="([^"]+)"/i)
-    const image = enc?.[1] || mediaT?.[1] || mediaC?.[1] || imgInDesc?.[1]
-    const title = t ? clean(t[1]) : ''
-    const description = d ? clean(d[1]) : ''
-    if (title && description) {
-      items.push({
-        title,
-        description,
-        link: l ? clean(l[1]) : undefined,
-        pubDate: p ? clean(p[1]) : undefined,
-        image,
-      })
-    }
-  }
-  return items
-}
-
-async function fetchVOA(): Promise<NewsItem[]> {
-  const res = await fetch('https://www.voachinese.com/api/?type=rss&zoneId=0', {
-    headers: { 'User-Agent': 'Mozilla/5.0' },
-    signal: AbortSignal.timeout(8000),
+async function fetchZaobaoList(path: string): Promise<NewsItem[]> {
+  const url = `https://www.zaobao.com.sg/${path}`
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+    signal: AbortSignal.timeout(10000),
     cache: 'no-store',
   })
   if (!res.ok) return []
-  const xml = await res.text()
-  const items = parseRSS(xml)
+  const html = await res.text()
+  const items: NewsItem[] = []
+  const seen = new Set<string>()
+  // Cards have <a aria-label="..." href="/path/story...">
+  for (const m of html.matchAll(/aria-label="([^"]{6,200})"[^>]*href="(\/[^"]*story[^"]*)"/g)) {
+    const title = decodeEntities(m[1]).trim()
+    const slug = m[2]
+    if (seen.has(slug)) continue
+    if (!/[一-鿿]/.test(title)) continue
+    seen.add(slug)
+    items.push({
+      id: hash('zb:' + slug),
+      source: '联合早报',
+      title,
+      summary: title,
+      link: 'https://www.zaobao.com.sg' + slug,
+    })
+    if (items.length >= 12) break
+  }
   return items
-    .filter(it => !/广播|焦点.*音频|VOA.*音频/i.test(it.title))
-    .slice(0, 12)
-    .map(it => ({
-      id: hash('voa:' + it.title),
-      source: 'VOA 中文',
-      title: it.title,
-      summary: it.description,
-      link: it.link,
-      image: it.image,
-      publishedAt: it.pubDate,
-    }))
 }
 
 async function fetchBaidu(): Promise<NewsItem[]> {
@@ -118,20 +113,26 @@ async function fetchBaidu(): Promise<NewsItem[]> {
       image,
       link: 'https://www.baidu.com/s?wd=' + encodeURIComponent(title),
     })
-    if (items.length >= 12) break
+    if (items.length >= 10) break
   }
   return items
 }
 
-export async function GET() {
-  const results = await Promise.allSettled([fetchVOA(), fetchBaidu()])
+export async function GET(req: NextRequest) {
+  const cat = req.nextUrl.searchParams.get('cat') || 'current'
+  const def = CATEGORIES.find(c => c.key === cat) || CATEGORIES[0]
+
+  const tasks: Promise<NewsItem[]>[] = def.zaobaoPaths.map(p => fetchZaobaoList(p))
+  if (def.includeBaidu) tasks.push(fetchBaidu())
+
+  const settled = await Promise.allSettled(tasks)
   const items: NewsItem[] = []
-  for (const r of results) {
+  for (const r of settled) {
     if (r.status === 'fulfilled') items.push(...r.value)
   }
   for (let i = items.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [items[i], items[j]] = [items[j], items[i]]
   }
-  return NextResponse.json({ items, fetchedAt: new Date().toISOString() })
+  return NextResponse.json({ items, category: def.key, categories: KNOWN_CATEGORIES, fetchedAt: new Date().toISOString() })
 }

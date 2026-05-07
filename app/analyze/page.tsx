@@ -1,10 +1,10 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { pinyin } from 'pinyin-pro'
 import { getHskWord, type HskWord } from '../../lib/hsk'
 import { colorPinyinLine, getToneColor } from '../../lib/toneColors'
 import { recordTextView } from '../../lib/learnLog'
+import { smartPinyin } from '../../lib/smartPinyin'
 import DictionaryDrawer from '../components/DictionaryDrawer'
 import ScrollUpButton from '../components/ScrollUpButton'
 
@@ -41,13 +41,7 @@ export default function AnalyzePage() {
     return data.text.split(/\n+/).map(p => p.trim()).filter(Boolean)
   }, [data])
 
-  const charsByParagraph = useMemo(() => {
-    return paragraphs.map(p => {
-      const arr = p.split('')
-      const py = pinyin(p, { type: 'array', toneType: 'symbol', nonZh: 'consecutive' }) as string[]
-      return arr.map((ch, i) => ({ ch, py: isHanzi(ch) ? (py[i] || '') : '' }))
-    })
-  }, [paragraphs])
+  const charsByParagraph = useMemo(() => paragraphs.map(p => smartPinyin(p)), [paragraphs])
 
   const advancedWords = useMemo<HskWord[]>(() => {
     if (!data) return []
@@ -138,9 +132,14 @@ export default function AnalyzePage() {
 
       <section style={{padding: '0 24px 32px'}}>
         {view === 'hanzi' && (
-          <div style={{fontFamily: 'Newsreader, serif', fontSize: '19px', color: '#25181e', lineHeight: 1.8}}>
-            {paragraphs.map((p, i) => (
-              <p key={i} style={{margin: '0 0 16px', overflowWrap: 'anywhere'}}>{p}</p>
+          <div style={{fontFamily: 'Newsreader, serif', fontSize: '19px', color: '#25181e', lineHeight: 1.9}}>
+            {charsByParagraph.map((chars, pi) => (
+              <p key={pi} style={{margin: '0 0 16px', overflowWrap: 'anywhere'}}>
+                {chars.map((c, ci) => isHanzi(c.ch)
+                  ? <span key={ci} onClick={() => { setDictWord(c.ch); setDictPinyin(c.py) }} style={{cursor: 'pointer'}}>{c.ch}</span>
+                  : <span key={ci}>{c.ch}</span>
+                )}
+              </p>
             ))}
           </div>
         )}
@@ -159,7 +158,11 @@ export default function AnalyzePage() {
                     )
                   }
                   return (
-                    <span key={ci} style={{display: 'inline-flex', flexDirection: 'column', alignItems: 'center', padding: '0 2px', marginBottom: '4px'}}>
+                    <span
+                      key={ci}
+                      onClick={() => { setDictWord(c.ch); setDictPinyin(c.py) }}
+                      style={{display: 'inline-flex', flexDirection: 'column', alignItems: 'center', padding: '0 2px', marginBottom: '4px', cursor: 'pointer'}}
+                    >
                       <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: 12, color: getToneColor(c.py), fontWeight: 600, lineHeight: 1, height: '14px'}}>{c.py}</span>
                       <span style={{fontFamily: 'Newsreader, serif', fontSize: 26, color: '#25181e', lineHeight: 1.3, marginTop: '2px'}}>{c.ch}</span>
                     </span>
@@ -172,11 +175,16 @@ export default function AnalyzePage() {
 
         {view === 'english' && (
           <div>
-            {paragraphs.map((p, i) => (
-              <div key={i} style={{marginBottom: '20px'}}>
-                <p style={{fontFamily: 'Newsreader, serif', fontSize: '19px', color: '#25181e', margin: '0 0 6px', lineHeight: 1.6, overflowWrap: 'anywhere'}}>{p}</p>
+            {charsByParagraph.map((chars, pi) => (
+              <div key={pi} style={{marginBottom: '20px'}}>
+                <p style={{fontFamily: 'Newsreader, serif', fontSize: '19px', color: '#25181e', margin: '0 0 6px', lineHeight: 1.7, overflowWrap: 'anywhere'}}>
+                  {chars.map((c, ci) => isHanzi(c.ch)
+                    ? <span key={ci} onClick={() => { setDictWord(c.ch); setDictPinyin(c.py) }} style={{cursor: 'pointer'}}>{c.ch}</span>
+                    : <span key={ci}>{c.ch}</span>
+                  )}
+                </p>
                 <p style={{fontFamily: 'Newsreader, serif', fontSize: '14px', color: '#4d4447', fontStyle: 'italic', margin: 0, lineHeight: 1.5, overflowWrap: 'anywhere'}}>
-                  {translations[p] || (translating ? '翻译中...' : '—')}
+                  {translations[paragraphs[pi]] || (translating ? '翻译中...' : '—')}
                 </p>
               </div>
             ))}
