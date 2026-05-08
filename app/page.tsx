@@ -187,6 +187,21 @@ export default function HomePage() {
             </button>
           )}
         </div>
+        <button
+          onClick={() => router.push('/video')}
+          style={{
+            marginTop: '10px', width: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+            backgroundColor: '#fff', border: '1px dashed #f0d8d8', borderRadius: '12px',
+            padding: '12px 14px', cursor: 'pointer'
+          }}
+        >
+          <span style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+            <span className="material-symbols-outlined" style={{color: '#bc004b', fontSize: 22}}>play_circle</span>
+            <span style={{fontFamily: 'Newsreader, serif', fontSize: '15px', color: '#25181e', fontWeight: 600}}>YouTube 字幕</span>
+          </span>
+          <span style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', color: '#7f7478'}}>粘贴 →</span>
+        </button>
       </section>
 
       {!searchActive && (
