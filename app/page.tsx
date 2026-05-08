@@ -28,10 +28,24 @@ const DEFAULT_CATEGORIES: Category[] = [
 const SOURCE_BG: Record<string, string> = {
   '联合早报': '#e3f2fd',
   '百度热搜': '#fff0f4',
+  '百度电影': '#fff0f4',
+  '百度电视剧': '#fff0f4',
+  '百度小说': '#fff0f4',
+  '36氪': '#fff3e0',
+  '网易新闻': '#fde8e8',
+  '网易': '#fde8e8',
+  '知乎': '#e8f5e9',
 }
 const SOURCE_FG: Record<string, string> = {
   '联合早报': '#0d47a1',
   '百度热搜': '#bc004b',
+  '百度电影': '#bc004b',
+  '百度电视剧': '#bc004b',
+  '百度小说': '#bc004b',
+  '36氪': '#e65100',
+  '网易新闻': '#b71c1c',
+  '网易': '#b71c1c',
+  '知乎': '#1b5e20',
 }
 
 export default function HomePage() {
@@ -41,6 +55,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [picking, setPicking] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [searchActive, setSearchActive] = useState(false)
+  const [searchItems, setSearchItems] = useState<NewsItem[]>([])
+  const [searching, setSearching] = useState(false)
   const router = useRouter()
 
   async function load(cat: string) {
@@ -59,7 +77,33 @@ export default function HomePage() {
     }
   }
 
-  useEffect(() => { load(activeCat) }, [activeCat])
+  useEffect(() => { if (!searchActive) load(activeCat) }, [activeCat, searchActive])
+
+  async function runSearch() {
+    const q = query.trim()
+    if (!q) return
+    setSearching(true)
+    setSearchActive(true)
+    setError('')
+    try {
+      const r = await fetch('/api/search?q=' + encodeURIComponent(q))
+      const d = await r.json()
+      setSearchItems(Array.isArray(d.items) ? d.items : [])
+      if (!Array.isArray(d.items) || d.items.length === 0) setError('找不到相关文章')
+    } catch {
+      setError('搜索失败')
+      setSearchItems([])
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  function clearSearch() {
+    setQuery('')
+    setSearchActive(false)
+    setSearchItems([])
+    setError('')
+  }
 
   async function pick(item: NewsItem) {
     setPicking(item.id)
@@ -111,45 +155,86 @@ export default function HomePage() {
 
       <section style={{padding: '96px 24px 8px'}}>
         <h2 style={{fontFamily: 'Newsreader, serif', fontSize: '30px', fontWeight: 700, lineHeight: 1.1, marginBottom: '4px'}}>选篇文章</h2>
-        <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', margin: 0}}>联合早报 · 百度热搜 · 实时刷新</p>
+        <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', margin: 0}}>联合早报 · 百度 · 36氪 · 网易 · 搜索</p>
       </section>
 
-      <nav style={{
-        position: 'sticky', top: '72px', zIndex: 40,
-        padding: '8px 0',
-        backgroundColor: '#fff8f8',
-      }}>
-        <div style={{
-          display: 'flex', gap: '8px', overflowX: 'auto', padding: '0 16px',
-          scrollbarWidth: 'none' as const,
-        }}>
-          {categories.map(cat => {
-            const active = cat.key === activeCat
-            return (
-              <button
-                key={cat.key}
-                onClick={() => setActiveCat(cat.key)}
-                style={{
-                  flexShrink: 0,
-                  padding: '8px 16px', borderRadius: '999px',
-                  backgroundColor: active ? '#bc004b' : '#fff0f4',
-                  color: active ? '#fff' : '#bc004b',
-                  border: 'none', cursor: 'pointer',
-                  fontFamily: 'Newsreader, serif', fontSize: '15px', fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}>{cat.label}</button>
-            )
-          })}
+      <section style={{padding: '12px 16px 4px'}}>
+        <div style={{position: 'relative'}}>
+          <span className="material-symbols-outlined" style={{
+            position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)',
+            color: '#bc004b', fontSize: 22
+          }}>search</span>
+          <input
+            type="search"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') runSearch() }}
+            placeholder="搜索关键词..."
+            style={{
+              width: '100%', backgroundColor: '#fff0f4', border: 'none',
+              borderRadius: '12px', padding: '12px 56px 12px 44px',
+              fontSize: '16px', fontFamily: 'Newsreader, serif',
+              outline: 'none', boxSizing: 'border-box'
+            }}
+          />
+          {searchActive && (
+            <button onClick={clearSearch} aria-label="清除搜索" style={{
+              position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '6px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <span className="material-symbols-outlined" style={{color: '#7f7478', fontSize: 22}}>close</span>
+            </button>
+          )}
         </div>
-      </nav>
+      </section>
+
+      {!searchActive && (
+        <nav style={{
+          position: 'sticky', top: '72px', zIndex: 40,
+          padding: '8px 0',
+          backgroundColor: '#fff8f8',
+        }}>
+          <div style={{
+            display: 'flex', gap: '8px', overflowX: 'auto', padding: '0 16px',
+            scrollbarWidth: 'none' as const,
+          }}>
+            {categories.map(cat => {
+              const active = cat.key === activeCat
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => setActiveCat(cat.key)}
+                  style={{
+                    flexShrink: 0,
+                    padding: '8px 16px', borderRadius: '999px',
+                    backgroundColor: active ? '#bc004b' : '#fff0f4',
+                    color: active ? '#fff' : '#bc004b',
+                    border: 'none', cursor: 'pointer',
+                    fontFamily: 'Newsreader, serif', fontSize: '15px', fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                  }}>{cat.label}</button>
+                )
+            })}
+          </div>
+        </nav>
+      )}
+
+      {searchActive && (
+        <section style={{padding: '8px 24px 0'}}>
+          <p style={{fontFamily: 'Work Sans, sans-serif', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#7f7478', margin: 0}}>
+            搜索 “{query}” {searching ? '· 中...' : `· ${searchItems.length} 条结果`}
+          </p>
+        </section>
+      )}
 
       <section style={{padding: '8px 16px 0'}}>
         {error && <p style={{padding: '20px', textAlign: 'center', fontFamily: 'Newsreader, serif', fontStyle: 'italic', color: '#7f7478'}}>{error}</p>}
-        {loading && items.length === 0 && (
-          <p style={{padding: '40px 20px', textAlign: 'center', fontFamily: 'Newsreader, serif', fontStyle: 'italic', color: '#7f7478'}}>加载中...</p>
+        {((searchActive ? searching : loading) && (searchActive ? searchItems : items).length === 0) && (
+          <p style={{padding: '40px 20px', textAlign: 'center', fontFamily: 'Newsreader, serif', fontStyle: 'italic', color: '#7f7478'}}>{searchActive ? '搜索中...' : '加载中...'}</p>
         )}
         <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-          {items.map(it => (
+          {(searchActive ? searchItems : items).map(it => (
             <button
               key={it.id}
               onClick={() => pick(it)}

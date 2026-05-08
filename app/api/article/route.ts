@@ -25,11 +25,33 @@ export async function GET(req: NextRequest) {
   let parsed: URL
   try { parsed = new URL(url) } catch { return NextResponse.json({ text: '', error: 'bad url' }, { status: 400 }) }
   const allowed = [
-    'zaobao.com.sg', 'www.zaobao.com.sg',
-    '163.com', 'www.163.com',
-    '36kr.com', 'www.36kr.com',
+    'zaobao.com.sg',
+    '163.com',
+    '36kr.com',
+    'zhihu.com',
+    'sina.com.cn',
+    'sohu.com',
+    'qq.com',
+    'cctv.com',
+    'thepaper.cn',
+    'caixin.com',
+    'huxiu.com',
+    'jiemian.com',
+    'meishichina.com',
+    'baike.baidu.com',
+    'xinhuanet.com',
+    'people.com.cn',
+    'chinanews.com',
+    'chinanews.com.cn',
+    'ifeng.com',
+    'guancha.cn',
+    'guokr.com',
+    'allhistory.com',
+    'qulishi.com',
+    'lishi.net',
   ]
-  if (!allowed.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h))) {
+  const matchAllow = (host: string) => allowed.some(h => host === h || host.endsWith('.' + h))
+  if (!matchAllow(parsed.hostname)) {
     return NextResponse.json({ text: '', error: 'host not allowed' }, { status: 400 })
   }
 
