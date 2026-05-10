@@ -7,6 +7,7 @@ export default function BottomNav() {
 
   const tabs = [
     { href: '/', icon: 'newspaper', label: '阅读' },
+    { href: '/pinyin', icon: 'spellcheck', label: '注音' },
     { href: '/analyze', icon: 'menu_book', label: '词汇' },
     { href: '/dictate', icon: 'edit_note', label: '听写' },
     { href: '/translate', icon: 'translate', label: '翻译' },
@@ -30,7 +31,7 @@ export default function BottomNav() {
         return (
           <Link key={tab.href} href={tab.href} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            padding: '5px 8px', borderRadius: '9999px',
+            padding: '5px 6px', borderRadius: '9999px',
             backgroundColor: active ? '#f4dce4' : 'transparent',
             color: active ? '#bc004b' : '#4d4447',
             textDecoration: 'none', transition: 'all 0.2s'
